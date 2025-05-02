@@ -8,5 +8,13 @@
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "dependencies": {
+    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "openai": "^4.97.0"
+  },
+  "trustedDependencies": [
+    "core-js"
+  ]
 }
