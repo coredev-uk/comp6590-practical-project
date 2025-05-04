@@ -1,11 +1,9 @@
-import type { UniversalSentenceEncoder } from "@tensorflow-models/universal-sentence-encoder";
 import { Tensor, type Tensor2D } from "@tensorflow/tfjs";
 import type { CreativityScores } from "../types";
 
-class CreativityEvaluator {
+export class CreativityEvaluator {
   private referenceEmbeddings!: Tensor2D;
   constructor(
-    private use: UniversalSentenceEncoder,
     referenceCorpus: string[],
   ) {
     // @TODO: Set reference embeddings using the USE module (types are a bit messed up so idk)

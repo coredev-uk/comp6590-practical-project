@@ -5,6 +5,7 @@ import type { Candidate } from "./types";
 import { TemplateGenerator } from "./modules/templateGenerator";
 import { TransformationModule } from "./modules/transformation";
 import { Refiner } from "./modules/refine";
+import { CreativityEvaluator } from "./modules/evaluator";
 
 const MODEL = google("gemini-2.0-flash-lite-001");
 const TEMPLATES: string[] = [
@@ -17,8 +18,11 @@ class CompuRiddle {
   private gen = new TemplateGenerator(TEMPLATES);
   private trans = new TransformationModule(MODEL, TRANSFORM_RULES);
   private refiner = new Refiner(MODEL);
+  private eval: CreativityEvaluator;
 
-  constructor(refCorpus: string[]) {}
+  constructor(refCorpus: string[]) {
+    this.eval = new CreativityEvaluator(refCorpus);
+  }
 
   async runCycle(
     batchSize = 5,
