@@ -1,8 +1,9 @@
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import type { RiddleOutput, CreativityScores } from "./types";
-import { generate, refine, transform, evaluate } from "./modules";
+import { evaluate, generate, refine, transform } from "./modules";
 import { fileURLToPath } from "url";
+import "@tensorflow/tfjs-node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

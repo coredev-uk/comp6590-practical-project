@@ -2,11 +2,12 @@ import { google } from "@ai-sdk/google";
 import type { RiddleOutput, CreativityScores } from "./types";
 import { generateObject } from "ai";
 import { z } from "zod";
+import * as tf from "@tensorflow/tfjs";
 import {
   UniversalSentenceEncoder,
   load as loadUseEncoder,
 } from "@tensorflow-models/universal-sentence-encoder";
-import { Tensor, type Tensor2D } from "@tensorflow/tfjs-node";
+import type { Tensor, Tensor2D } from "@tensorflow/tfjs";
 
 const MODEL = google("gemini-2.0-flash-lite");
 
@@ -107,11 +108,14 @@ let encoderPromise: Promise<UniversalSentenceEncoder> | null = null;
  * @param corpus - Array of reference riddles
  */
 async function loadEmbeddings(corpus: string[]): Promise<void> {
+  tf.ready();
+  tf.setBackend("tensorflow");
+
   if (!encoderPromise) {
     encoderPromise = loadUseEncoder();
   }
   const encoder = await encoderPromise;
-  referenceEmbeddings = (await encoder.embed(corpus)) as Tensor2D;
+  referenceEmbeddings = await encoder.embed(corpus);
 }
 
 /**
@@ -143,7 +147,7 @@ export async function evaluate(
     await loadEmbeddings(corpus);
   }
   const encoder = await (encoderPromise as Promise<UniversalSentenceEncoder>);
-  const emb = (await encoder.embed([riddle])) as Tensor2D;
+  const emb = await encoder.embed([riddle]);
   const distances = referenceEmbeddings!
     .unstack()
     .map((ref) => cosineDistance(emb.squeeze(), ref));
