@@ -22,6 +22,12 @@ export type Candidate = {
   scores: CreativityScores;
 };
 
+export type Arguments = {
+  batchSize: number;
+  verbose: boolean;
+  outputDir: string;
+};
+
 export type PipelineStep = (
   input: RiddleOutput,
 ) => Promise<RiddleOutput> | RiddleOutput;
