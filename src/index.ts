@@ -1,9 +1,11 @@
-import { readFileSync, writeFileSync } from "fs";
-import { resolve, dirname } from "path";
-import type { RiddleOutput, CreativityScores } from "./types";
-import { evaluate, generate, refine, transform } from "./modules";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
-import "@tensorflow/tfjs-node";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+import type { RiddleOutput, Candidate, PipelineStep, Arguments } from "./types";
+import { generate, refine, transform, evaluate } from "./modules";
+import { writeCsvResults, writeJsonResults } from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
