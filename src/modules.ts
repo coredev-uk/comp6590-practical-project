@@ -31,7 +31,7 @@ export function generate(templates: string[]): RiddleOutput {
   const byCategory = parts.reduce(
     (acc, part) => {
       acc[part.category] = acc[part.category] || [];
-      acc[part.category].push(part);
+      acc[part.category]?.push(part);
       return acc;
     },
     {} as Record<string, RiddlePart[]>,
@@ -47,16 +47,16 @@ export function generate(templates: string[]): RiddleOutput {
   }
 
   const category =
-    validCategories[Math.floor(Math.random() * validCategories.length)];
-  const categoryParts = byCategory[category];
+    validCategories[Math.floor(Math.random() * validCategories.length)] as string;
+  const categoryParts = byCategory[category] as RiddlePart[];
 
   // Select different parts from the same category
   const setupPart =
-    categoryParts[Math.floor(Math.random() * categoryParts.length)];
-  let punchlinePart;
+    categoryParts[Math.floor(Math.random() * categoryParts.length)] as RiddlePart;
+  let punchlinePart: RiddlePart;
   do {
     punchlinePart =
-      categoryParts[Math.floor(Math.random() * categoryParts.length)];
+      categoryParts[Math.floor(Math.random() * categoryParts.length)] as RiddlePart;
   } while (punchlinePart === setupPart && categoryParts.length > 1);
 
   const riddle = `${setupPart.setup} ${punchlinePart.punchline}`;
@@ -163,6 +163,7 @@ async function loadEmbeddings(corpus: string[]): Promise<void> {
     encoderPromise = loadUseEncoder();
   }
   const encoder = await encoderPromise;
+  // @ts-expect-error TensorFlow.js types are not up to date
   referenceEmbeddings = await encoder.embed(corpus);
 }
 
@@ -200,6 +201,7 @@ export async function evaluate(
   // novelty (use cosine distance to work out how similar the riddle is to the reference corpus)
   const distances = referenceEmbeddings!
     .unstack()
+    // @ts-expect-error TensorFlow.js types are not up to date
     .map((ref) => cosineDistance(emb.squeeze(), ref));
   const novelty = distances.reduce((a, b) => a + b, 0) / distances.length;
 
