@@ -9,98 +9,137 @@ import { writeCsvResults, writeJsonResults } from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Configuration constants
 const TEMPLATES: string[] = [
   "I speak without a mouth and hear without ears. What am I?",
   "I'm tall when I'm young, and I'm short when I'm old. What am I?",
 ];
-const TRANSFORM_RULES: string[] = ["paraphrase"];
 const FEW_SHOT_EXAMPLES: string[] = [
-  "I have cities but no houses, forests without trees, and rivers without water. What am I? A map.",
+  "I have cities but no houses... A map.",
   "What has to be broken before you can use it? An egg.",
 ];
+const TRANSFORM_RULES: string[] = ["paraphrase"];
 
 /**
- * Runs one cycle of the CompuRiddle pipeline: generate, refine, transform, evaluate, and exports results.
- * @param batchSize - Number of candidates to generate (default: 5)
- * @param topK - Number of top and bottom samples to log (default: 2)
+ * Creates pipeline steps for a given variant
+ * @returns Array of pipeline steps
  */
-export async function runPipeline(batchSize = 5, topK = 2): Promise<void> {
-  // Load reference corpus for evaluation
+function createPipelineSteps(variant: string): PipelineStep[] {
+  const exploratoryStep: PipelineStep = (output) =>
+    refine({
+      riddle: output.riddle,
+      fewShot: FEW_SHOT_EXAMPLES,
+      temperature: 0.8,
+      topP: 0.9,
+    });
+  const transformationalStep: PipelineStep = (output) =>
+    transform(output.riddle, TRANSFORM_RULES);
+
+  switch (variant) {
+    case "exploratory":
+      return [exploratoryStep];
+    case "full":
+      return [exploratoryStep, transformationalStep];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Runs a specific variant of the pipeline (e.g., baseline, exploratory, full).
+ * @param variantName - Identifier for the variant
+ * @param batchSize - Number of riddles to generate
+ * @param steps - Array of pipeline steps to apply after generation
+ * @param referenceCorpus - Pre-loaded reference corpus for evaluation
+ * @returns An object with the variant name and all candidate results
+ */
+async function runPipelineVariant(
+  variantName: string,
+  batchSize: number,
+  steps: PipelineStep[],
+  referenceCorpus: string[],
+): Promise<{ variant: string; candidates: Candidate[] }> {
+  const candidates: Candidate[] = [];
+
+  for (let index = 0; index < batchSize; index++) {
+    // Step 1: Combinatorial creativity (template selection)
+    let currentOutput: RiddleOutput = generate(TEMPLATES);
+    const metadataHistory = [currentOutput.meta];
+
+    // Apply each subsequent pipeline step
+    for (const step of steps) {
+      currentOutput = await step(currentOutput);
+      metadataHistory.push(currentOutput.meta);
+    }
+
+    // Self-evaluation of final riddle
+    const evaluationScores = await evaluate(
+      currentOutput.riddle,
+      referenceCorpus,
+    );
+    candidates.push({
+      riddle: currentOutput.riddle,
+      meta: metadataHistory,
+      scores: evaluationScores,
+    });
+  }
+
+  return { variant: variantName, candidates };
+}
+
+/**
+ * Orchestrates all pipeline variants and exports results.
+ * Uses Promise.all to run variants concurrently.
+ * @param batchSize - Number of candidates per variant
+ */
+export async function runPipeline(
+  batchSize = 5,
+  verbose = false,
+  outputDir?: string,
+): Promise<void> {
+  // Pre-load the reference corpus once
   const corpusPath = resolve(__dirname, "training_riddles.json");
   const referenceCorpus = JSON.parse(
     readFileSync(corpusPath, "utf-8"),
   ) as string[];
 
-  const candidates: Array<{ output: RiddleOutput; scores: CreativityScores }> =
-    [];
-
-  for (let i = 0; i < batchSize; i++) {
-    // Step 1: Combinatorial creativity
-    const generated = generate(TEMPLATES);
-    // Step 2: Exploratory creativity
-    const refined = await refine({
-      riddle: generated.riddle,
-      fewShot: FEW_SHOT_EXAMPLES,
-      temperature: 0.8,
-      topP: 0.9,
-    });
-    // Step 3: Transformational creativity
-    const transformed = await transform(refined.riddle, TRANSFORM_RULES);
-    // Step 4: Self-evaluation
-    const scores = await evaluate(transformed.riddle, referenceCorpus);
-
-    candidates.push({ output: transformed, scores });
+  if (verbose) {
+    console.log(`Starting pipeline with batch size: ${batchSize}`);
+    console.log(`Loading reference corpus from: ${corpusPath}`);
+    console.log(`Reference corpus size: ${referenceCorpus.length} entries`);
   }
 
-  // Sort by novelty descending
-  const sorted = [...candidates].sort(
-    (a, b) => b.scores.novelty - a.scores.novelty,
+  // Define variants and launch them in parallel
+  const variants = ["baseline", "exploratory", "full"];
+  const allResults = await Promise.all(
+    variants.map((variant) =>
+      runPipelineVariant(
+        variant,
+        batchSize,
+        createPipelineSteps(variant),
+        referenceCorpus,
+      ),
+    ),
   );
-  const top = sorted.slice(0, topK);
-  const bottom = sorted.slice(-topK);
+  const outputPath = outputDir || __dirname;
 
-  // Prepare structured export
-  const exportData = {
-    version: "1.0",
-    generatedAt: new Date().toISOString(),
-    candidates: candidates.map(({ output, scores }) => ({
-      riddle: output.riddle,
-      meta: output.meta,
-      scores,
-    })),
-  };
+  if (verbose) {
+    console.log(`Writing results to directory: ${outputPath}`);
+    console.log(`Generated candidates per variant: ${batchSize}`);
+  }
 
-  // Write JSON results
+  if (outputDir && !existsSync(outputDir)) {
+    mkdirSync(outputDir);
+  }
+
   writeFileSync(
-    resolve(__dirname, "results.json"),
-    JSON.stringify(exportData, null, 2),
+    resolve(outputPath, "results_comparison.json"),
+    JSON.stringify(allResults, null, 2),
   );
 
-  // Write CSV results
-  const header =
-    "strategy,template,rule,novelty,lexicalDiversity,syntacticDivergence,riddle";
-  const lines = candidates.map(({ output, scores }) => {
-    const { strategy, template = "", rule = "" } = output.meta;
-    const { novelty, lexicalDiversity, syntacticDivergence } = scores;
-    const safe = output.riddle.replace(/"/g, '""');
-    return [
-      strategy,
-      template,
-      rule,
-      novelty.toFixed(4),
-      lexicalDiversity.toFixed(4),
-      syntacticDivergence.toFixed(4),
-      `"${safe}"`,
-    ].join(",");
-  });
-  writeFileSync(
-    resolve(__dirname, "results.csv"),
-    [header, ...lines].join("\n"),
-  );
-
-  // Log summary
-  console.log("Top examples:", top);
-  console.log("Bottom examples:", bottom);
+  // Write results in different formats
+  writeJsonResults(allResults, join(outputPath, "results_comparison.json"));
+  writeCsvResults(allResults, outputPath, verbose);
 }
 
 runPipeline().catch((err) => console.error(err));
