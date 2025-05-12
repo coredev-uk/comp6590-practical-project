@@ -52,6 +52,13 @@ You must set your Google Generative AI API key as an environment variable:
 export GOOGLE_GENERATIVE_AI_API_KEY='your-api-key-here'
 ```
 
+Or you can create a `.env` file in the root directory of the project and add
+the following line:
+
+```bash
+GOOGLE_GENERATIVE_AI_API_KEY='your-api-key-here'
+```
+
 4. **Run the project:**
 
 ```
