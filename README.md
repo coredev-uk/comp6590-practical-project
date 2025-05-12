@@ -40,6 +40,10 @@ Follow these steps to set up the project locally:
 npm install
 ```
 
+This project uses `TensorFlow.js`, your system may need addditional changes,
+please see the
+[GitHub](https://github.com/tensorflow/tfjs/tree/master/tfjs-node).
+
 3. **Set up environment variables:**
 
 You must set your Google Generative AI API key as an environment variable:
@@ -61,4 +65,4 @@ Additionally, you can parse the `--help` flag to the start command
 
 Just for a small final note, if you are wondering why the `devenv.*` files are
 present, they are required to allow my development system to run the TensorFlow
-library. Feel free to read up on devenv [here](https://devenv.sh/)
+library. Feel free to read up on devenv [here](https://devenv.sh/).
