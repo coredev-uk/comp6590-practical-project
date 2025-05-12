@@ -142,4 +142,38 @@ export async function runPipeline(
   writeCsvResults(allResults, outputPath, verbose);
 }
 
-runPipeline().catch((err) => console.error(err));
+// Parse command line arguments using yargs
+const argv = yargs(hideBin(process.argv))
+  .options({
+    "batch-size": {
+      alias: "b",
+      type: "number",
+      description: "Number of riddles to generate per variant",
+      default: 5,
+    },
+    verbose: {
+      alias: "v",
+      type: "boolean",
+      description: "Enable verbose logging",
+      default: false,
+    },
+    "output-dir": {
+      alias: "o",
+      type: "string",
+      description: "Directory to store output files",
+      default: __dirname,
+    },
+  })
+  .help()
+  .alias("help", "h")
+  .version()
+  .alias("version", "V")
+  .parseSync() as Arguments;
+
+// Execute pipeline when run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runPipeline(argv.batchSize, argv.verbose, argv.outputDir).catch((error) => {
+    console.error("Pipeline error:", error);
+    process.exit(1);
+  });
+}
