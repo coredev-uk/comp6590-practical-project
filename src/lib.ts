@@ -1,6 +1,6 @@
-import { type Candidate } from "./types";
 import { resolve } from "path";
 import { writeFileSync } from "fs";
+import type { Candidate } from "./types";
 
 /**
  * Writes CSV results for each variant
