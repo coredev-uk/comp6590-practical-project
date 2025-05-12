@@ -109,7 +109,7 @@ let encoderPromise: Promise<UniversalSentenceEncoder> | null = null;
  */
 async function loadEmbeddings(corpus: string[]): Promise<void> {
   tf.ready();
-  tf.setBackend("tensorflow");
+  tf.setBackend("cpu");
 
   if (!encoderPromise) {
     encoderPromise = loadUseEncoder();
@@ -148,12 +148,15 @@ export async function evaluate(
   }
   const encoder = await (encoderPromise as Promise<UniversalSentenceEncoder>);
   const emb = await encoder.embed([riddle]);
+
+  // novelty (use cosine distance to work out how similar the riddle is to the reference corpus)
   const distances = referenceEmbeddings!
     .unstack()
     .map((ref) => cosineDistance(emb.squeeze(), ref));
   const novelty = distances.reduce((a, b) => a + b, 0) / distances.length;
 
-  const tokens = riddle.split(/\s+/);
+  // tokenize the riddle and move to a set to determine how many unique tokens there are
+  const tokens = riddle.toLowerCase().split(/\s+/);
   const lexicalDiversity = new Set(tokens).size / tokens.length;
 
   const lengths = riddle
@@ -161,6 +164,8 @@ export async function evaluate(
     .filter((s) => s.trim())
     .map((s) => s.split(/\s+/).length);
   const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+
+  // syntactic divergence (how much the lengths of the sentences vary)
   const syntacticDivergence =
     lengths.reduce((sum, len) => sum + Math.pow(len - mean, 2), 0) /
     lengths.length;

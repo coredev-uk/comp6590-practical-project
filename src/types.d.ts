@@ -21,3 +21,7 @@ export type Candidate = {
   meta: RiddleMeta[];
   scores: CreativityScores;
 };
+
+export type PipelineStep = (
+  input: RiddleOutput,
+) => Promise<RiddleOutput> | RiddleOutput;
