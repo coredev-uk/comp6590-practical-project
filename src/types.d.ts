@@ -1,33 +1,43 @@
+export type Strategy = "combinatorial" | "exploratory" | "transformational";
+
 export type RiddleMeta = {
-  strategy: "combinatorial" | "exploratory" | "transformational";
+  strategy: Strategy;
   template?: string;
   rule?: string;
-  params?: { temperature: number; top_p: number };
+  params?: {
+    temperature: number;
+    top_p: number;
+  };
 };
 
-export type RiddleOutput = {
+export type PipelineError = {
+  step: Strategy;
+  error: Error;
+  riddle: string;
+};
+
+export interface RiddleOutput {
   riddle: string;
   meta: RiddleMeta;
-};
+}
 
-export type CreativityScores = {
+export interface CreativityScores {
   novelty: number;
   lexicalDiversity: number;
   syntacticDivergence: number;
-};
+}
 
-export type Candidate = {
+export interface Candidate {
   riddle: string;
   meta: RiddleMeta[];
   scores: CreativityScores;
-};
+}
 
-export type Arguments = {
+export type PipelineStep = (output: RiddleOutput) => Promise<RiddleOutput>;
+
+export interface Arguments {
   batchSize: number;
   verbose: boolean;
   outputDir: string;
-};
-
-export type PipelineStep = (
-  input: RiddleOutput,
-) => Promise<RiddleOutput> | RiddleOutput;
+  [key: string]: unknown;
+}

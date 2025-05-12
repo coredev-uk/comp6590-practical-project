@@ -1,18 +1,16 @@
-import { google } from "@ai-sdk/google";
 import type { RiddleOutput, CreativityScores } from "./types";
 import { generateObject } from "ai";
 import { z } from "zod";
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs-node";
 import {
   UniversalSentenceEncoder,
   load as loadUseEncoder,
 } from "@tensorflow-models/universal-sentence-encoder";
 import type { Tensor, Tensor2D } from "@tensorflow/tfjs";
+import { MODEL } from "./config";
 
-const MODEL = google("gemini-2.0-flash-lite");
-
-// === Combinatorial Creativity ===
 /**
+ * Stage: Combinatorial Creativity
  * Selects a random riddle template and tags it as combinatorial creativity.
  * @param templates - Array of riddle templates to choose from
  * @returns The generated riddle and metadata
@@ -24,8 +22,8 @@ export function generate(templates: string[]): RiddleOutput {
   return { riddle: template, meta: { strategy: "combinatorial", template } };
 }
 
-// === Exploratory Creativity ===
 /**
+ * Stage: Exploratory Creativity
  * Refines a riddle by enhancing its creativity using an AI model.
  * @param options - Options for refinement
  * @param options.riddle - The riddle text to refine
@@ -72,8 +70,8 @@ export async function refine({
   };
 }
 
-// === Transformational Creativity ===
 /**
+ * Creativity Stage: Transformational Creativity
  * Transforms a riddle based on specified rules (e.g., paraphrase).
  * @param riddle - The riddle text to transform
  * @param rules - Transformation rules to apply
@@ -109,7 +107,7 @@ let encoderPromise: Promise<UniversalSentenceEncoder> | null = null;
  */
 async function loadEmbeddings(corpus: string[]): Promise<void> {
   tf.ready();
-  tf.setBackend("cpu");
+  // tf.setBackend("cpu");
 
   if (!encoderPromise) {
     encoderPromise = loadUseEncoder();
@@ -119,7 +117,7 @@ async function loadEmbeddings(corpus: string[]): Promise<void> {
 }
 
 /**
- * Computes cosine distance between two tensors, with safety checks.
+ * Computes cosine distance between two tensors.
  * @param a - First tensor
  * @param b - Second tensor
  * @returns Cosine distance in [0, 2]

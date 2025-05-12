@@ -7,19 +7,15 @@ import { hideBin } from "yargs/helpers";
 import type { RiddleOutput, Candidate, PipelineStep, Arguments } from "./types";
 import { generate, refine, transform, evaluate } from "./modules";
 import { writeCsvResults, writeJsonResults } from "./lib";
+import {
+  TEMPLATES,
+  FEW_SHOT_EXAMPLES,
+  TRANSFORM_RULES,
+  VARIANTS,
+  type Variant,
+} from "./config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Configuration constants
-const TEMPLATES: string[] = [
-  "I speak without a mouth and hear without ears. What am I?",
-  "I'm tall when I'm young, and I'm short when I'm old. What am I?",
-];
-const FEW_SHOT_EXAMPLES: string[] = [
-  "I have cities but no houses... A map.",
-  "What has to be broken before you can use it? An egg.",
-];
-const TRANSFORM_RULES: string[] = ["paraphrase"];
 
 /**
  * Creates pipeline steps for a given variant
@@ -47,50 +43,65 @@ function createPipelineSteps(variant: string): PipelineStep[] {
 }
 
 /**
- * Runs a specific variant of the pipeline (e.g., baseline, exploratory, full).
- * @param variantName - Identifier for the variant
- * @param batchSize - Number of riddles to generate
- * @param steps - Array of pipeline steps to apply after generation
- * @param referenceCorpus - Pre-loaded reference corpus for evaluation
- * @returns An object with the variant name and all candidate results
+ * Generates a riddle and processes it through the pipeline steps
+ */
+async function processRiddle(
+  steps: PipelineStep[],
+  referenceCorpus: string[],
+): Promise<Candidate> {
+  // Basic generation (random selection from templates)
+  let currentOutput: RiddleOutput = generate(TEMPLATES);
+  const metadataHistory = [currentOutput.meta];
+
+  // Apply pipeline steps (if present)
+  for (const step of steps) {
+    try {
+      currentOutput = await step(currentOutput);
+
+      metadataHistory.push(currentOutput.meta);
+    } catch (error) {
+      console.error(`Error in ${currentOutput.meta.strategy} step:`, error);
+      throw error;
+    }
+  }
+
+  // Evaluate the final output
+  const evaluationScores = await evaluate(
+    currentOutput.riddle,
+    referenceCorpus,
+  );
+
+  return {
+    riddle: currentOutput.riddle,
+    meta: metadataHistory,
+    scores: evaluationScores,
+  };
+}
+
+/**
+ * Runs a specific variant of the pipeline
  */
 async function runPipelineVariant(
-  variantName: string,
+  variantName: Variant,
   batchSize: number,
   steps: PipelineStep[],
   referenceCorpus: string[],
-): Promise<{ variant: string; candidates: Candidate[] }> {
+): Promise<{ variant: Variant; candidates: Candidate[] }> {
   const candidates: Candidate[] = [];
+  const promises: Promise<Candidate>[] = [];
 
-  for (let index = 0; index < batchSize; index++) {
-    // Step 1: Combinatorial creativity (template selection)
-    let currentOutput: RiddleOutput = generate(TEMPLATES);
-    const metadataHistory = [currentOutput.meta];
-
-    // Apply each subsequent pipeline step
-    for (const step of steps) {
-      currentOutput = await step(currentOutput);
-      metadataHistory.push(currentOutput.meta);
-    }
-
-    // Self-evaluation of final riddle
-    const evaluationScores = await evaluate(
-      currentOutput.riddle,
-      referenceCorpus,
-    );
-    candidates.push({
-      riddle: currentOutput.riddle,
-      meta: metadataHistory,
-      scores: evaluationScores,
-    });
+  for (let i = 0; i < batchSize; i++) {
+    promises.push(processRiddle(steps, referenceCorpus));
   }
+
+  const results = await Promise.all(promises);
+  candidates.push(...results);
 
   return { variant: variantName, candidates };
 }
 
 /**
  * Orchestrates all pipeline variants and exports results.
- * Uses Promise.all to run variants concurrently.
  * @param batchSize - Number of candidates per variant
  */
 export async function runPipeline(
@@ -108,25 +119,42 @@ export async function runPipeline(
     console.log(`Starting pipeline with batch size: ${batchSize}`);
     console.log(`Loading reference corpus from: ${corpusPath}`);
     console.log(`Reference corpus size: ${referenceCorpus.length} entries`);
+    console.log("Running pipeline variants...");
   }
 
   // Define variants and launch them in parallel
-  const variants = ["baseline", "exploratory", "full"];
+
   const allResults = await Promise.all(
-    variants.map((variant) =>
+    VARIANTS.map((variant) =>
       runPipelineVariant(
         variant,
         batchSize,
         createPipelineSteps(variant),
         referenceCorpus,
-      ),
+        verbose,
+      ).catch((error) => {
+        console.error(`Failed to process variant ${variant}:`, error);
+        throw error;
+      }),
     ),
   );
   const outputPath = outputDir || __dirname;
 
   if (verbose) {
-    console.log(`Writing results to directory: ${outputPath}`);
-    console.log(`Generated candidates per variant: ${batchSize}`);
+    // Log summary of results
+    allResults.forEach(({ variant, candidates }) => {
+      console.log(`\nResults for variant [${variant}]:`);
+      candidates.forEach((candidate, index) => {
+        console.log(`\nRiddle ${index + 1}/${candidates.length}:`);
+        console.log(`Final output: "${candidate.riddle}"`);
+        console.log("Evaluation scores:", candidate.scores);
+        console.log(
+          "Pipeline steps:",
+          candidate.meta.map((m) => m.strategy).join(" -> "),
+        );
+      });
+    });
+    console.log(`\nResults written to: ${outputPath}`);
   }
 
   if (outputDir && !existsSync(outputDir)) {
