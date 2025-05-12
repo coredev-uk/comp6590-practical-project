@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
