@@ -56,3 +56,9 @@ npm run start
 
 Additionally, you can parse the `--help` flag to the start command
 (`npm run start -- --help`) to get additional options.
+
+## Devenv Use
+
+Just for a small final note, if you are wondering why the `devenv.*` files are
+present, they are required to allow my development system to run the TensorFlow
+library. Feel free to read up on devenv [here](https://devenv.sh/)
