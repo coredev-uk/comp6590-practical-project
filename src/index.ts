@@ -161,7 +161,7 @@ const argv = yargs(hideBin(process.argv))
       alias: "o",
       type: "string",
       description: "Directory to store output files",
-      default: __dirname,
+      default: join(process.cwd(), "results"),
     },
   })
   .help()

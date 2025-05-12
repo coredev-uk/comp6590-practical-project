@@ -40,12 +40,19 @@ Follow these steps to set up the project locally:
 npm install
 ```
 
-3. **Run the project:**
+3. **Set up environment variables:**
+
+You must set your Google Generative AI API key as an environment variable:
 
 ```bash
+export GOOGLE_GENERATIVE_AI_API_KEY='your-api-key-here'
+```
+
+4. **Run the project:**
+
+```
 npm run start
 ```
 
 Additionally, you can parse the `--help` flag to the start command
 (`npm run start -- --help`) to get additional options.
-
