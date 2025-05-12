@@ -8,8 +8,8 @@ import type { RiddleOutput, Candidate, PipelineStep, Arguments } from "./types";
 import { generate, refine, transform, evaluate } from "./modules";
 import { writeCsvResults, writeJsonResults } from "./lib";
 import {
-  TEMPLATES,
   FEW_SHOT_EXAMPLES,
+  TEMPLATES,
   TRANSFORM_RULES,
   VARIANTS,
   type Variant,
@@ -131,7 +131,6 @@ export async function runPipeline(
         batchSize,
         createPipelineSteps(variant),
         referenceCorpus,
-        verbose,
       ).catch((error) => {
         console.error(`Failed to process variant ${variant}:`, error);
         throw error;

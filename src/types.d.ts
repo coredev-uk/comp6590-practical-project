@@ -4,10 +4,13 @@ export type RiddleMeta = {
   strategy: Strategy;
   template?: string;
   rule?: string;
+  category?: string;
   params?: {
     temperature: number;
     top_p: number;
   };
+  originalSetup?: string;
+  originalPunchline?: string;
 };
 
 export type PipelineError = {
@@ -41,3 +44,9 @@ export interface Arguments {
   outputDir: string;
   [key: string]: unknown;
 }
+
+export type RiddlePart = {
+  setup: string;
+  punchline: string;
+  category: string;
+};

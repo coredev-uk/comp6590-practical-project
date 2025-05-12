@@ -1,4 +1,4 @@
-import type { RiddleOutput, CreativityScores } from "./types";
+import type { RiddleOutput, CreativityScores, RiddlePart } from "./types";
 import { generateObject } from "ai";
 import { z } from "zod";
 import * as tf from "@tensorflow/tfjs-node";
@@ -11,15 +11,65 @@ import { MODEL } from "./config";
 
 /**
  * Stage: Combinatorial Creativity
- * Selects a random riddle template and tags it as combinatorial creativity.
- * @param templates - Array of riddle templates to choose from
+ * Creates new riddles by combining setup and punchline components from different riddles
+ * while ensuring the combinations are semantically compatible.
+ * @param templates - Array of riddles in "setup | punchline | category" format
  * @returns The generated riddle and metadata
  */
 export function generate(templates: string[]): RiddleOutput {
-  const template = templates[
-    Math.floor(Math.random() * templates.length)
-  ] as string;
-  return { riddle: template, meta: { strategy: "combinatorial", template } };
+  // Parse templates into components
+  const parts = templates
+    .map((t) => {
+      const [setup, punchline, category = "general"] = t
+        .split("|")
+        .map((s) => s.trim());
+      return { setup, punchline, category };
+    })
+    .filter((p) => p.setup && p.punchline) as RiddlePart[];
+
+  // Group by category for semantic compatibility
+  const byCategory = parts.reduce(
+    (acc, part) => {
+      acc[part.category] = acc[part.category] || [];
+      acc[part.category].push(part);
+      return acc;
+    },
+    {} as Record<string, RiddlePart[]>,
+  );
+
+  // Select a random category that has at least 2 riddles
+  const validCategories = Object.entries(byCategory)
+    .filter(([_, parts]) => parts.length >= 2)
+    .map(([cat, _]) => cat);
+
+  if (validCategories.length === 0) {
+    throw new Error("Not enough riddles for combinatorial generation");
+  }
+
+  const category =
+    validCategories[Math.floor(Math.random() * validCategories.length)];
+  const categoryParts = byCategory[category];
+
+  // Select different parts from the same category
+  const setupPart =
+    categoryParts[Math.floor(Math.random() * categoryParts.length)];
+  let punchlinePart;
+  do {
+    punchlinePart =
+      categoryParts[Math.floor(Math.random() * categoryParts.length)];
+  } while (punchlinePart === setupPart && categoryParts.length > 1);
+
+  const riddle = `${setupPart.setup} ${punchlinePart.punchline}`;
+
+  return {
+    riddle,
+    meta: {
+      strategy: "combinatorial",
+      category,
+      originalSetup: setupPart.setup,
+      originalPunchline: punchlinePart.punchline,
+    },
+  };
 }
 
 /**
