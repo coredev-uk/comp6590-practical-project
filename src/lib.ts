@@ -14,18 +14,14 @@ export function writeCsvResults(
   verbose: boolean,
 ): void {
   const csvHeader =
-    "variant,strategy,novelty,lexicalDiversity,syntacticDivergence";
+    "Riddle,Novelty,Lexical Diversity,Syntactic Divergence";
 
   for (const { variant, candidates } of results) {
     const csvLines = candidates.map((candidate) => {
-      const combinedStrategies = candidate.meta
-        .map((m) => m.strategy)
-        .join("|");
       const { novelty, lexicalDiversity, syntacticDivergence } =
         candidate.scores;
       return [
-        variant,
-        combinedStrategies,
+        `"${candidate.riddle.replace(/,/g, "\\,")}"`,
         novelty.toFixed(4),
         lexicalDiversity.toFixed(4),
         syntacticDivergence.toFixed(4),
